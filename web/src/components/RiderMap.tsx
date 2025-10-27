@@ -5,7 +5,7 @@ import { useRiderStreamConnection } from '../hooks/useRiderStreamConnection';
 import { MapContainer, Marker, Popup, Rectangle, TileLayer } from 'react-leaflet'
 import L from 'leaflet';
 import { getGeohashBounds } from '../utils/geohash';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { MapClickHandler } from './MapClickHandler';
 import { Button } from './ui/button';
 import { RouteFare, RequestRideProps, TripPreview, HTTPTripStartResponse } from "../types";
@@ -13,11 +13,18 @@ import { RoutingControl } from "./RoutingControl";
 import { API_URL } from '../constants';
 import { RiderTripOverview } from './RiderTripOverview';
 import { BackendEndpoints, HTTPTripPreviewRequestPayload, HTTPTripPreviewResponse, HTTPTripStartRequestPayload } from '../contracts';
+import { useGeolocation } from '../hooks/useGeolocation';
 
 const userMarker = new L.Icon({
     iconUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Map_pin_icon.svg/176px-Map_pin_icon.svg.png",
     iconSize: [40, 40], // Size of the marker
     iconAnchor: [20, 40], // Anchor point
+});
+
+const currentLocationMarker = new L.Icon({
+    iconUrl: "https://www.svgrepo.com/show/535711/user.svg",
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
 });
 
 const driverMarker = new L.Icon({
@@ -38,10 +45,23 @@ export default function RiderMap({ onRouteSelected }: RiderMapProps) {
     const userID = useMemo(() => crypto.randomUUID(), [])
     const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Use geolocation with fallback to New Delhi
+    const { latitude, longitude, error: geoError, loading: geoLoading } = useGeolocation({ 
+        watch: true, // Enable real-time location updates
+        enableHighAccuracy: true 
+    });
+
     const location = {
-        latitude: 37.7749,
-        longitude: -122.4194,
+        latitude: latitude ?? 28.6139, // Fallback to New Delhi
+        longitude: longitude ?? 77.2090, // Fallback to New Delhi
     };
+
+    // Update map center when location changes
+    useEffect(() => {
+        if (mapRef.current && latitude && longitude) {
+            mapRef.current.setView([latitude, longitude], 13);
+        }
+    }, [latitude, longitude]);
 
     const {
         drivers,
@@ -78,7 +98,7 @@ export default function RiderMap({ onRouteSelected }: RiderMapProps) {
             setTrip({
                 tripID: "",
                 route: parsedRoute,
-                rideFares: data.rideFares,
+                rideFare: data.rideFare,
                 distance: data.route.distance,
                 duration: data.route.duration,
             })
@@ -104,6 +124,9 @@ export default function RiderMap({ onRouteSelected }: RiderMapProps) {
 
         const response = await fetch(`${API_URL}${BackendEndpoints.PREVIEW_TRIP}`, {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(payload),
         })
         const { data } = await response.json() as { data: HTTPTripPreviewResponse }
@@ -123,6 +146,9 @@ export default function RiderMap({ onRouteSelected }: RiderMapProps) {
 
         const response = await fetch(`${API_URL}${BackendEndpoints.START_TRIP}`, {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(payload),
         })
         const data = await response.json() as HTTPTripStartResponse
@@ -150,6 +176,27 @@ export default function RiderMap({ onRouteSelected }: RiderMapProps) {
 
     return (
         <div className="relative flex flex-col md:flex-row h-screen">
+            {/* Location Status Indicator */}
+            <div className="absolute top-4 left-4 z-[1000] bg-white rounded-lg shadow-md p-2 text-sm">
+                {geoLoading && (
+                    <div className="flex items-center gap-2 text-blue-600">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                        Getting location...
+                    </div>
+                )}
+                {geoError && (
+                    <div className="flex items-center gap-2 text-orange-600">
+                        <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
+                        Using default location
+                    </div>
+                )}
+                {latitude && longitude && !geoLoading && (
+                    <div className="flex items-center gap-2 text-green-600">
+                        <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                        Live location active
+                    </div>
+                )}
+            </div>
             <div className={`${destination ? 'flex-[0.7]' : 'flex-1'}`}>
                 <MapContainer
                     center={[location.latitude, location.longitude]}
@@ -161,7 +208,13 @@ export default function RiderMap({ onRouteSelected }: RiderMapProps) {
                         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                         attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/'>CARTO</a>"
                     />
-                    <Marker position={[location.latitude, location.longitude]} icon={userMarker} />
+                    <Marker position={[location.latitude, location.longitude]} icon={currentLocationMarker}>
+                        <Popup>
+                            Your Current Location
+                            {geoError && <><br />Fallback: New Delhi, India</>}
+                            {geoLoading && <><br />Getting your location...</>}
+                        </Popup>
+                    </Marker>
 
                     {/* Render geohash grid cells */}
                     {drivers?.map((driver) => (

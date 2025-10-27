@@ -34,7 +34,7 @@ export type ServerWsMessage =
   | NoDriversFoundRequest;
 
 // Messages sent from the client to the server via the websocket
-export type ClientWsMessage = DriverResponseToTripResponse
+export type ClientWsMessage = DriverResponseToTripResponse | DriverLocationRequest
 
 interface TripCreatedRequest {
   type: TripEvents.Created;
@@ -87,7 +87,7 @@ interface DriverResponseToTripResponse {
 
 export interface HTTPTripPreviewResponse {
   route: Route;
-  rideFares: RouteFare[];
+  rideFare: RouteFare[];
 }
 
 export interface HTTPTripStartRequestPayload {
@@ -105,6 +105,14 @@ export function isValidTripEvent(event: string): event is TripEvents {
   return Object.values(TripEvents).includes(event as TripEvents);
 }
 
-export function isValidWsMessage(message: ServerWsMessage): message is ServerWsMessage {
-  return isValidTripEvent(message.type);
+export function isValidWsMessage(message: unknown): message is ServerWsMessage {
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    'type' in message &&
+    typeof (message as { type: unknown }).type === 'string'
+  ) {
+    return isValidTripEvent((message as { type: string }).type);
+  }
+  return false;
 }

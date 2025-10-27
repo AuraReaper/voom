@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { WEBSOCKET_URL } from "../constants";
 import { Trip } from '../types';
 import { Driver, Coordinate } from '../types';
-import { PaymentEventSessionCreatedData, TripEvents, ServerWsMessage, isValidWsMessage, BackendEndpoints } from '../contracts';
+import { PaymentEventSessionCreatedData, TripEvents, isValidWsMessage, BackendEndpoints } from '../contracts';
 
 export function useRiderStreamConnection(location: Coordinate, userID: string) {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -16,23 +16,23 @@ export function useRiderStreamConnection(location: Coordinate, userID: string) {
 
     const ws = new WebSocket(`${WEBSOCKET_URL}${BackendEndpoints.WS_RIDERS}?userID=${userID}`);
 
-    ws.onopen = () => {
-      // Send initial location
-      if (location) {
-        ws.send(JSON.stringify({
-          type: TripEvents.DriverLocation,
-          data: {
-            location,
-          }
-        }));
-      }
-    };
+    // ws.onopen = () => {
+    //   // Send initial location
+    //   if (location) {
+    //     ws.send(JSON.stringify({
+    //       type: TripEvents.DriverLocation,
+    //       data: {
+    //         location,
+    //       }
+    //     }));
+    //   }
+    // };
 
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data) as ServerWsMessage;
+      const message = JSON.parse(event.data);
 
       if (!message || !isValidWsMessage(message)) {
-        setError(`Unknown message type "${message}", allowed types are: ${Object.values(TripEvents).join(', ')}`);
+        setError(`Unknown message type "${message.type}", allowed types are: ${Object.values(TripEvents).join(', ')}`);
         return;
       }
 

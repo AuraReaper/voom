@@ -37,7 +37,7 @@ export interface RouteFare {
     id: string,
     packageSlug: CarPackageSlug,
     basePrice: number,
-    totalPriceInCents?: number,
+    totalPriceInINR: number,
     expiresAt: Date,
     route: Route,
 }
@@ -50,7 +50,7 @@ export interface HTTPTripStartResponse {
 export interface TripPreview {
     tripID: string,
     route: [number, number][],
-    rideFares: RouteFare[],
+    rideFare: RouteFare[],
     duration: number,
     distance: number,
 }
