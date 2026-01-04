@@ -45,9 +45,9 @@ func (s *Service) GetDrivers() ([]*pb.Driver, error) {
 func (s *Service) RegisterDriver(driverId string, packageSlug string) (*pb.Driver, error) {
 	newDriver := &domain.Driver{
 		ID:             driverId,
-		Name:           "New Driver", // You might want to generate a better name
+		Name:           "New Driver",
 		PackageSlug:    packageSlug,
-		CarPlate:       "NEW-1234",   // And a better car plate
+		CarPlate:       "NEW-1234",
 		ProfilePicture: util.GetRandomAvatar(int(rand.Int31n(100))),
 		Location:       &pb.Location{Latitude: 20.27, Longitude: 85.82},
 		Geohash:        geohash.Encode(20.27, 85.82),
